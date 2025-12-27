@@ -1,0 +1,5 @@
+{
+  "name": "RaceWise AI - Hybrid Pipeline Parser",
+  "description": "A high-performance horse racing data pipeline that transforms PDF racing digests into a hybrid CSV/XML architecture for advanced handicapping and data analysis.",
+  "requestFramePermissions": []
+}
