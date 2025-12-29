@@ -1,5 +1,5 @@
 {
-  "name": "racewise-ai---hybrid-pipeline-parser",
+  "name": "racewise-ai---pro-handicapping-engine",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,7 +13,8 @@
     "@google/genai": "^1.34.0",
     "react": "^19.2.3",
     "lucide-react": "^0.562.0",
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "recharts": "2.15.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

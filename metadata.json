@@ -1,5 +1,7 @@
 {
-  "name": "RaceWise AI - Hybrid Pipeline Parser",
-  "description": "A high-performance horse racing data pipeline that transforms PDF racing digests into a hybrid CSV/XML architecture for advanced handicapping and data analysis.",
-  "requestFramePermissions": []
+  "name": "RaceWise AI - Pro Handicapping Engine",
+  "description": "A world-class horse racing ensemble pipeline that processes TRD Racing Digests using Gemini 3 Pro and custom mathematical models to generate win probabilities and fair odds.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
 }

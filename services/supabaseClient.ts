@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://bqvavkzgmznjfirgfyhd.supabase.com';
@@ -8,12 +7,26 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'public-anon-key-plac
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-export const persistRaceData = async (data: any) => {
+/**
+ * Persists race entry data to Supabase.
+ * @param data The flattened array of horse/entry data.
+ * @param track The track name to ensure is included in the upsert.
+ */
+export const persistRaceData = async (data: any[], track: string) => {
+  // Map through data to ensure track is explicitly set for every row
+  const rows = data.map(row => ({
+    ...row,
+    track: track // Explicitly include the track field as requested
+  }));
+
   const { error } = await supabase
     .from('races')
-    .upsert(data, { onConflict: 'race_id' });
+    .upsert(rows, { onConflict: 'race_id' });
   
-  if (error) throw error;
+  if (error) {
+    console.error("Supabase Operation Error:", error);
+    throw error;
+  }
 };
 
 export const subscribeToOdds = (raceId: string, callback: (payload: any) => void) => {

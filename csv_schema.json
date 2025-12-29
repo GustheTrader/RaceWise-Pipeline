@@ -1,56 +1,27 @@
-
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "RaceWise CSV Row Contract",
-  "description": "Schema for a single row in the master_stats.csv flattened output stream, including Jockey, Trainer, and the last 5 past performances.",
+  "title": "RaceWise Master Dataset Contract",
+  "description": "Schema for the comprehensive master_stats.csv output including ensemble scores and historical performance triplets.",
   "type": "object",
   "properties": {
-    "RaceID": {
-      "type": "string",
-      "description": "Unique identifier for the race (Track_Date_RaceNumber)",
-      "pattern": "^[A-Z0-9]{2}_[0-9]{4}_[0-9]{2}$"
-    },
-    "Horse": {
-      "type": "string",
-      "description": "The name of the horse"
-    },
-    "Pg_Num": {
-      "type": "string",
-      "description": "The program or post position number (e.g., '1', '1A', '12')",
-      "pattern": "^[0-9]{1,2}[A-Z]?$"
-    },
-    "Jockey": {
-      "type": "string",
-      "description": "The name of the jockey"
-    },
-    "Trainer": {
-      "type": "string",
-      "description": "The name of the trainer"
-    },
-    "FIRE": {
-      "type": "integer",
-      "description": "FIRE speed rating",
-      "minimum": 0,
-      "maximum": 150
-    },
-    "CPR": {
-      "type": "integer",
-      "description": "Comprehensive Performance Rating",
-      "minimum": 0,
-      "maximum": 150
-    },
-    "FastFig": {
-      "type": "integer",
-      "description": "Calculated Fast Figure",
-      "minimum": 0,
-      "maximum": 150
-    },
-    "Consensus": {
-      "type": "integer",
-      "description": "Total consensus points",
-      "minimum": 0,
-      "maximum": 99
-    },
+    "Rank": { "type": "integer" },
+    "Track": { "type": "string" },
+    "Date": { "type": "string" },
+    "RaceNum": { "type": "integer" },
+    "Pg_Num": { "type": "string" },
+    "Horse": { "type": "string" },
+    "ML_Odds": { "type": "string" },
+    "Model_Odds": { "type": "string" },
+    "Model_Score": { "type": "number" },
+    "Win_Prob": { "type": "string" },
+    "Jockey_Win_Pct": { "type": "string" },
+    "Trainer_Win_Pct": { "type": "string" },
+    "HF": { "type": "string" },
+    "Comments": { "type": "string" },
+    "FIRE": { "type": "integer" },
+    "CPR": { "type": "integer" },
+    "FastFig": { "type": "integer" },
+    "Consensus": { "type": "integer" },
     "PP1_Date": { "type": "string" },
     "PP1_Finish": { "type": "string" },
     "PP1_Dist": { "type": "string" },
@@ -67,13 +38,5 @@
     "PP5_Finish": { "type": "string" },
     "PP5_Dist": { "type": "string" }
   },
-  "required": [
-    "RaceID", 
-    "Horse", 
-    "Pg_Num", 
-    "FIRE", 
-    "CPR", 
-    "FastFig", 
-    "Consensus"
-  ]
+  "required": ["Rank", "Horse", "Model_Score", "Win_Prob", "ML_Odds"]
 }
