@@ -32,6 +32,7 @@ export interface Horse {
   winPercentage: number;  // Win probability calculation (Mandatory)
   jockeyWinRate: number;  // (Mandatory)
   trainerWinRate: number; // (Mandatory)
+  weight: string;         // MED/WT/EQP (Mandatory)
   hf?: string;            // Handicapping Factors string from column 18
   rank?: number;
   comments: string;

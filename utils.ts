@@ -1,3 +1,4 @@
+
 import { PipelineResult, Race, Horse } from "./types";
 
 /**
@@ -126,7 +127,7 @@ const formatToFractional = (decimalOdds: number): string => {
 export const convertToCSV = (data: PipelineResult): string => {
   const header = [
     "Rank", "Track", "Date", "RaceNum", "Pg_Num", "Horse", 
-    "ML_Odds", "Model_Odds", "Model_Score", "Win_Prob", 
+    "Weight", "ML_Odds", "Model_Odds", "Model_Score", "Win_Prob", 
     "Consensus", "Jockey_Win_Pct", "Trainer_Win_Pct", "HF", "Comments",
     "FIRE", "CPR", "FastFig",
     "PP1_Date", "PP1_Finish", "PP1_Dist",
@@ -155,6 +156,7 @@ export const convertToCSV = (data: PipelineResult): string => {
         race.number,
         `"${horse.programNumber}"`,
         `"${horse.name}"`,
+        `"${horse.weight || ""}"`,
         `"${horse.morningLine || ""}"`,
         `"${horse.modelOdds}"`,
         horse.modelScore,
@@ -186,6 +188,7 @@ export const convertToXML = (data: PipelineResult): string => {
     race.horses.forEach((horse) => {
       xml += `    <Horse rank="${horse.rank}">\n`;
       xml += `      <Name>${horse.name}</Name>\n`;
+      xml += `      <Weight>${horse.weight}</Weight>\n`;
       xml += `      <Odds ml="${horse.morningLine}" model="${horse.modelOdds}" />\n`;
       xml += `      <WinProbability>${horse.winPercentage}%</WinProbability>\n`;
       xml += `      <Score>${horse.modelScore}</Score>\n`;
