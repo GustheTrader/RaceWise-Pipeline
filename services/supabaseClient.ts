@@ -1,7 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://bqvavkzgmznjfirgfyhd.supabase.com';
+const SUPABASE_URL = 'https://bqvavkzgmznjfirgfyhd.supabase.co';
 // Use the provided anon key for the specific project reference
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxdmF2a3pnbXpuamZpcmdmeWhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYzODE0NjMsImV4cCI6MjA2MTk1NzQ2M30.s6ZPJNjQpcNC6_CRUKA4g2yFJUEbxikQbApx1o_lLCs';
 
