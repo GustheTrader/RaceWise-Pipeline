@@ -114,7 +114,7 @@ export const parseMorningCard = async (request: ParseRequest, trackName?: string
   else if (request.text) parts.push({ text: request.text });
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3.1-pro-preview',
     contents: { parts },
     config
   });
@@ -167,7 +167,7 @@ export const scrapeOTBData = async (trackName: string): Promise<any> => {
     }`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3.1-pro-preview',
     contents: query,
     config: {
       tools: [{ googleSearch: {} }],
@@ -205,7 +205,7 @@ export const parseRacingDigest = async (request: ParseRequest): Promise<Pipeline
   else if (request.text) parts.push({ text: request.text });
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3.1-pro-preview',
     contents: { parts },
     config: { 
       responseMimeType: "application/json", 
@@ -227,7 +227,7 @@ export const parseBackupEntries = async (request: ParseRequest): Promise<Pipelin
   else if (request.text) parts.push({ text: request.text });
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3.1-pro-preview',
     contents: { parts },
     config: { 
       responseMimeType: "application/json", 
@@ -240,12 +240,38 @@ export const parseBackupEntries = async (request: ParseRequest): Promise<Pipelin
   return JSON.parse(response.text.trim());
 };
 
+export const parseDRF = async (request: ParseRequest): Promise<PipelineResult> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const prompt = `CRITICAL MISSION: You are parsing a Daily Racing Form (DRF) PDF.
+    1. EXTRACT EVERY SINGLE RACE (R1 through the final race of the card). 
+    2. NO TRUNCATION.
+    3. FOR EVERY HORSE: Extract Morning Line (ML), Weight (WT), Jockey, and Trainer. Also extract past performance statistics.
+    4. Generate Neural Ensemble Scores (0-100 scale).`;
+
+  const parts: any[] = [{ text: prompt }];
+  if (request.pdfData) parts.push({ inlineData: request.pdfData });
+  else if (request.text) parts.push({ text: request.text });
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3.1-pro-preview',
+    contents: { parts },
+    config: { 
+      responseMimeType: "application/json", 
+      responseSchema: RESPONSE_SCHEMA,
+      maxOutputTokens: 65000,
+      thinkingConfig: { thinkingBudget: 15000 }
+    }
+  });
+
+  return JSON.parse(response.text.trim());
+};
+
 export const syncLiveDataFromWeb = async (trackHint?: string): Promise<PipelineResult> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const query = `LIVE TRACK SCAN: Fetch the full current race card for ${trackHint || 'major tracks'}. Focus on REAL-TIME ODDS shifts and confirm field statistics for EVERY SINGLE RACE scheduled today. DO NOT TRUNCATE. Capture WT, J, T, and ML.`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3.1-pro-preview',
     contents: query,
     config: {
       tools: [{ googleSearch: {} }],

@@ -2,17 +2,14 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://bqvavkzgmznjfirgfyhd.supabase.com';
+// Use the provided anon key for the specific project reference
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxdmF2a3pnbXpuamZpcmdmeWhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYzODE0NjMsImV4cCI6MjA2MTk1NzQ2M30.s6ZPJNjQpcNC6_CRUKA4g2yFJUEbxikQbApx1o_lLCs';
 
 /**
- * Creates a fresh Supabase client instance using the environment key.
- * Throws a descriptive error if the key is missing to prevent silent failures.
+ * Creates a fresh Supabase client instance using the provided anon key.
  */
 const getClient = () => {
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!key) {
-    throw new Error("Supabase key is missing (process.env.SUPABASE_ANON_KEY). Please ensure your environment is configured correctly.");
-  }
-  return createClient(SUPABASE_URL, key);
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 };
 
 /**
@@ -40,7 +37,7 @@ export const persistRaceData = async (data: any[], track: string) => {
     }
   } catch (err: any) {
     // Catching network errors (like TypeError: Failed to fetch)
-    if (err instanceof TypeError && err.message === 'Failed to fetch') {
+    if (err instanceof TypeError && err.message.toLowerCase().includes('failed to fetch')) {
       console.error("Supabase Network Error: Connection refused. Check if the project is paused or if an ad-blocker is active.");
     }
     throw err;

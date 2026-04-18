@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { parseRacingDigest, parseBackupEntries, syncLiveDataFromWeb, parseMorningCard, scrapeOTBData } from './services/geminiService';
+import { parseRacingDigest, parseBackupEntries, syncLiveDataFromWeb, parseMorningCard, scrapeOTBData, parseDRF } from './services/geminiService';
 import { PipelineResult, Horse } from './types';
 import { convertToCSV, convertToXML, downloadFile, fileToBase64, processHandicapping } from './utils';
 import { persistRaceData } from './services/supabaseClient';
@@ -73,7 +73,7 @@ const TRACKS = [
   { id: 'custom', name: 'Other / Custom...', status: 'MANUAL' }
 ];
 
-type ToolMode = 'morning_card' | 'digest' | 'entry' | 'live';
+type ToolMode = 'morning_card' | 'digest' | 'entry' | 'drf' | 'live';
 type ActiveTab = 'preview' | 'betting_sheet' | 'rankings' | 'csv' | 'betting_table' | 'xml';
 
 const App: React.FC = () => {
@@ -177,6 +177,10 @@ const App: React.FC = () => {
         startProgress(`${inputMethodPrefix}Syncing Backup Master Card...`);
         const request = selectedFile ? { pdfData: { data: selectedFile.base64, mimeType: selectedFile.file.type } } : { text: inputText };
         data = await parseBackupEntries(request);
+      } else if (toolMode === 'drf') {
+        startProgress(`${inputMethodPrefix}DRF Upload & Parsing...`);
+        const request = selectedFile ? { pdfData: { data: selectedFile.base64, mimeType: selectedFile.file.type } } : { text: inputText };
+        data = await parseDRF(request);
       } else {
         startProgress(`Real-time Odds Scan: ${trackName}...`);
         data = await syncLiveDataFromWeb(trackName);
@@ -292,6 +296,191 @@ const App: React.FC = () => {
     return sorted.filter((h, idx) => idx < 6 || h.modelScore === cutoffScore);
   };
 
+  const renderTabContent = () => {
+    if (!result) return null;
+
+    if (activeTab === 'csv') {
+      return (
+        <div className="relative">
+          <textarea 
+            readOnly 
+            value={convertToCSV(result)} 
+            className="w-full h-[600px] bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-300 custom-scrollbar focus:outline-none"
+          />
+          <button 
+            onClick={() => navigator.clipboard.writeText(convertToCSV(result))}
+            className="absolute top-4 right-4 p-2 bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors border border-slate-700"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    }
+    
+    if (activeTab === 'xml') {
+      return (
+        <div className="relative">
+          <textarea 
+            readOnly 
+            value={convertToXML(result)} 
+            className="w-full h-[600px] bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-300 custom-scrollbar focus:outline-none"
+          />
+          <button 
+            onClick={() => navigator.clipboard.writeText(convertToXML(result))}
+            className="absolute top-4 right-4 p-2 bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors border border-slate-700"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    }
+
+    if (activeTab === 'rankings') {
+      return (
+        <div className="space-y-12">
+          {result.races.map(race => (
+            <div key={race.number} className="space-y-6">
+              <h3 className="text-xl font-black text-white uppercase tracking-tighter flex items-center gap-2">
+                <span className="text-blue-500">Race {race.number}</span> 
+                <span className="text-sm text-slate-500 font-bold">{race.distance} • {race.surface}</span>
+              </h3>
+              <div className="h-64 w-full bg-slate-900/50  rounded-xl p-4 border border-slate-800">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={race.horses.slice().sort((a,b) => b.modelScore - a.modelScore).slice(0, 8)} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
+                    <XAxis type="number" stroke="#475569" fontSize={10} />
+                    <YAxis dataKey="name" type="category" width={100} stroke="#475569" fontSize={10} />
+                    <RechartsTooltip 
+                      contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '0.5rem' }}
+                      itemStyle={{ color: '#3b82f6', fontWeight: 900 }}
+                    />
+                    <Bar dataKey="modelScore" radius={[0, 4, 4, 0]}>
+                      {race.horses.slice().sort((a,b) => b.modelScore - a.modelScore).slice(0, 8).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={index === 0 ? '#3b82f6' : index === 1 ? '#8b5cf6' : '#334155'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (activeTab === 'betting_sheet' || activeTab === 'preview') {
+      return (
+        <div className="space-y-8">
+          {result.races.map(race => {
+            const topHorses = getTopSixWithTies(race.horses);
+            return (
+              <div key={race.number} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+                <div className="flex justify-between items-end border-b border-slate-700 pb-4 mb-4 mt-2">
+                  <div>
+                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter shadow-sm flex flex-col gap-1">
+                      <span className="text-blue-500 text-sm tracking-widest leading-none">{result.track}</span>
+                      RACE {race.number}
+                    </h3>
+                    <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-wide">{race.distance} • {race.surface}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] tracking-widest text-slate-500 uppercase font-black">Top Pick Probability</span>
+                    <p className="text-xl font-black text-emerald-400 mt-1">{topHorses[0]?.winPercentage}%</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {topHorses.map((horse, idx) => (
+                    <div key={horse.programNumber} className={`relative p-4 rounded-xl border ${idx === 0 ? 'bg-blue-600/10 border-blue-500/30' : idx === 1 ? 'bg-violet-600/5 border-violet-500/20' : 'bg-slate-800/40 border-slate-700/50'} flex flex-col gap-3 justify-between`}>
+                      {idx === 0 && <Star className="absolute top-3 right-3 w-4 h-4 text-emerald-400 fill-emerald-400/20" />}
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${idx === 0 ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-700 text-slate-300'}`}>
+                            {horse.programNumber}
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-black text-white leading-none mb-1 mr-6">{horse.name}</h4>
+                            <p className="text-[9px] uppercase tracking-widest text-slate-400 truncate max-w-[120px]">{horse.jockey} • {horse.trainer}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        <div className="bg-slate-950/50 rounded-lg p-2 flex flex-col items-center justify-center border border-slate-800/80">
+                          <span className="text-[8px] uppercase tracking-widest text-slate-500 mb-0.5">SCORE</span>
+                          <span className={`text-xs font-black ${idx === 0 ? 'text-blue-400' : 'text-slate-300'}`}>{horse.modelScore.toFixed(1)}</span>
+                        </div>
+                        <div className="bg-slate-950/50 rounded-lg p-2 flex flex-col items-center justify-center border border-slate-800/80">
+                          <span className="text-[8px] uppercase tracking-widest text-slate-500 mb-0.5">MODEL</span>
+                          <span className="text-xs font-black text-emerald-400">{horse.modelOdds}</span>
+                        </div>
+                        <div className="bg-slate-950/50 rounded-lg p-2 flex flex-col items-center justify-center border border-slate-800/80">
+                          <span className="text-[8px] uppercase tracking-widest text-slate-500 mb-0.5">ML</span>
+                          <span className="text-xs font-black text-slate-400">{horse.morningLine}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (activeTab === 'betting_table') {
+      return (
+        <div className="space-y-10">
+          {result.races.map(race => (
+            <div key={race.number} className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/50">
+              <div className="p-4 bg-slate-800/80 border-b border-slate-700">
+                 <h3 className="text-sm font-black text-white uppercase tracking-wider">Race {race.number} <span className="text-slate-400 mx-2">|</span> {race.distance}</h3>
+              </div>
+              <table className="w-full text-left text-xs whitespace-nowrap">
+                <thead className="bg-slate-950/80 text-slate-400 uppercase tracking-wider text-[9px] font-black">
+                  <tr>
+                    <th className="px-4 py-3">Rank</th>
+                    <th className="px-4 py-3">PP</th>
+                    <th className="px-4 py-3">Horse</th>
+                    <th className="px-4 py-3 text-right">Model Score</th>
+                    <th className="px-4 py-3 text-right">Win %</th>
+                    <th className="px-4 py-3 text-right">Fair Odds</th>
+                    <th className="px-4 py-3 text-right">ML</th>
+                    <th className="px-4 py-3">Jockey / Trainer</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/50">
+                  {race.horses.concat().sort((a,b) => b.modelScore - a.modelScore).map((horse, idx) => (
+                    <tr key={horse.programNumber} className={`hover:bg-slate-800/30 transition-colors ${idx === 0 ? 'bg-blue-900/10' : ''}`}>
+                      <td className="px-4 py-3 font-black text-slate-500">{idx + 1}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex w-6 h-6 items-center justify-center bg-slate-800 rounded-md text-[10px] font-black text-white">{horse.programNumber}</span>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-white">{horse.name}</td>
+                      <td className="px-4 py-3 text-right font-mono text-blue-400 font-bold">{horse.modelScore.toFixed(1)}</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-300">{horse.winPercentage}%</td>
+                      <td className="px-4 py-3 text-right font-mono text-emerald-400 font-bold">{horse.modelOdds}</td>
+                      <td className="px-4 py-3 text-right font-mono text-slate-400">{horse.morningLine}</td>
+                      <td className="px-4 py-3 text-slate-500 font-medium text-[10px] uppercase truncate max-w-[200px]">{horse.jockey} / {horse.trainer}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+        <LayoutGrid className="w-12 h-12 mb-4 opacity-20" />
+        <p className="text-[10px] uppercase tracking-widest font-bold">Select a view tab</p>
+      </div>
+    );
+  };
+
   return (
     <div 
       className="min-h-screen flex flex-col bg-[#02040a] text-slate-100 selection:bg-blue-500/30 overflow-x-hidden"
@@ -342,13 +531,13 @@ const App: React.FC = () => {
         {/* COLUMN 1: CONTROLS */}
         <div className="lg:col-span-3 space-y-8">
           <div className="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800/80 shadow-2xl">
-            {(['morning_card', 'digest', 'entry', 'live'] as ToolMode[]).map(mode => (
+            {(['morning_card', 'digest', 'entry', 'drf', 'live'] as ToolMode[]).map(mode => (
               <button 
                 key={mode} 
                 onClick={() => setToolMode(mode)} 
                 className={`flex-1 py-2 text-[8px] font-black uppercase rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98] outline-none focus:ring-2 focus:ring-blue-500 ${toolMode === mode ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)]' : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/40'}`}
               >
-                {mode === 'morning_card' ? '1. MORNING' : mode === 'digest' ? '2. TRD' : mode === 'entry' ? 'Backup' : '3. LIVE'}
+                {mode === 'morning_card' ? '1. MORNING' : mode === 'digest' ? '2. TRD' : mode === 'entry' ? 'Backup' : mode === 'drf' ? 'DRF' : '3. LIVE'}
               </button>
             ))}
           </div>
@@ -417,9 +606,9 @@ const App: React.FC = () => {
                 <button 
                   onClick={handleRunTool} 
                   disabled={isProcessing} 
-                  className={`w-full h-14 font-black uppercase text-[10px] rounded-2xl transition-all shadow-4xl flex items-center justify-center gap-3 active:scale-95 hover:scale-[1.02] hover:brightness-110 disabled:opacity-40 disabled:hover:scale-100 focus:ring-4 focus:ring-blue-500/40 outline-none ${toolMode === 'morning_card' ? 'bg-blue-600 shadow-blue-900/40' : toolMode === 'digest' ? 'bg-violet-600 shadow-violet-900/40' : 'bg-slate-800'} text-white shadow-[0_8px_30px_rgba(0,0,0,0.4)]`}
+                  className={`w-full h-14 font-black uppercase text-[10px] rounded-2xl transition-all shadow-4xl flex items-center justify-center gap-3 active:scale-95 hover:scale-[1.02] hover:brightness-110 disabled:opacity-40 disabled:hover:scale-100 focus:ring-4 focus:ring-blue-500/40 outline-none ${toolMode === 'morning_card' ? 'bg-blue-600 shadow-blue-900/40' : toolMode === 'digest' ? 'bg-violet-600 shadow-violet-900/40' : toolMode === 'drf' ? 'bg-emerald-600 shadow-emerald-900/40' : 'bg-slate-800'} text-white shadow-[0_8px_30px_rgba(0,0,0,0.4)]`}
                 >
-                  {isProcessing ? <RefreshCw className="w-5 h-5 animate-spin" /> : toolMode === 'morning_card' ? 'Quantum Morning Report' : 'Execute Hybrid Pipeline'}
+                  {isProcessing ? <RefreshCw className="w-5 h-5 animate-spin" /> : toolMode === 'morning_card' ? 'Quantum Morning Report' : toolMode === 'drf' ? 'Execute DRF Analysis' : 'Execute Hybrid Pipeline'}
                 </button>
 
                 {toolMode === 'morning_card' && (
@@ -527,8 +716,7 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="max-h-[1000px] overflow-y-auto p-8 custom-scrollbar bg-slate-950/40">
-                    {/* Render Tab Contents (omitted for brevity, assume unchanged logic) */}
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest text-center py-12">Analysis results view active</p>
+                    {renderTabContent()}
                   </div>
                </div>
             </div>

@@ -3,5 +3,6 @@
   "description": "A world-class horse racing ensemble pipeline that processes TRD Racing Digests using Gemini 3 Pro and custom mathematical models to generate win probabilities and fair odds.",
   "requestFramePermissions": [
     "geolocation"
-  ]
+  ],
+  "majorCapabilities": []
 }
