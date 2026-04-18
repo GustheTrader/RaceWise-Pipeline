@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { parseRacingDigest, parseBackupEntries, syncLiveDataFromWeb, parseMorningCard, scrapeOTBData, parseDRF } from './services/geminiService';
+import { parseRacingDigest, parseBackupEntries, syncLiveDataFromWeb, parseMorningCard, scrapeOTBData, parseDRF } from './services/llmProvider';
 import { PipelineResult, Horse } from './types';
 import { convertToCSV, convertToXML, downloadFile, fileToBase64, processHandicapping } from './utils';
 import { persistRaceData } from './services/supabaseClient';
