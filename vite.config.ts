@@ -12,10 +12,7 @@ export default defineConfig(({ mode }) => {
       plugins: [react()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.OPENROUTER_API_KEY': JSON.stringify(env.OPENROUTER_API_KEY),
-        'process.env.LLM_PROVIDER': JSON.stringify(env.LLM_PROVIDER || 'openrouter'),
-        'process.env.LLM_MODEL': JSON.stringify(env.LLM_MODEL || 'google/gemini-2.5-pro')
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
       },
       resolve: {
         alias: {
