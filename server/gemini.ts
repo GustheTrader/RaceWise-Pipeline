@@ -5,13 +5,15 @@ import type { PipelineResult } from "../types";
 // Flash for now: the current GEMINI_API_KEY is free-tier, which has no Pro quota.
 // Set GEMINI_MODEL=gemini-3.1-pro-preview once the key's project has billing.
 // gemini-3.8-flash is left out: under load it accepts requests and then never answers.
+// gemini-3.5-flash is left out: Google routes it to 3.6.
 const GEMINI_MODELS = process.env.GEMINI_MODEL
   ? [process.env.GEMINI_MODEL]
-  : ["gemini-3-flash-preview", "gemini-3.6-flash", "gemini-3.5-flash"];
+  : ["gemini-3-flash-preview", "gemini-3.6-flash", "gemini-3.7-flash"];
 
 // Stay under the 300s Vercel function limit (vercel.json).
 const TOTAL_BUDGET_MS = 280_000;
-const ATTEMPT_CAP_MS = 200_000;
+// Each attempt leaves this much time for every model still to try.
+const RESERVE_PER_MODEL_MS = 40_000;
 
 const isRetryable = (err: any) => {
   const status = err?.status ?? err?.code;
@@ -24,15 +26,15 @@ const generate = async (ai: GoogleGenAI, params: Omit<Parameters<GoogleGenAI["mo
   const deadline = Date.now() + TOTAL_BUDGET_MS;
   for (let i = 0; ; i++) {
     const last = i === GEMINI_MODELS.length - 1;
-    const remaining = deadline - Date.now();
+    const timeout = deadline - Date.now() - RESERVE_PER_MODEL_MS * (GEMINI_MODELS.length - 1 - i);
     try {
       return await ai.models.generateContent({
         ...params,
         model: GEMINI_MODELS[i],
-        config: { ...params.config, abortSignal: AbortSignal.timeout(last ? remaining : Math.min(remaining, ATTEMPT_CAP_MS)) }
+        config: { ...params.config, abortSignal: AbortSignal.timeout(timeout) }
       });
     } catch (err: any) {
-      if (last || !isRetryable(err) || deadline - Date.now() < 20_000) throw err;
+      if (last || !isRetryable(err)) throw err;
     }
   }
 };
