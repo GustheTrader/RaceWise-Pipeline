@@ -2,6 +2,43 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { PipelineResult } from "../types";
 
+// Flash for now: the current GEMINI_API_KEY is free-tier, which has no Pro quota.
+// Set GEMINI_MODEL=gemini-3.1-pro-preview once the key's project has billing.
+// gemini-3.8-flash is left out: under load it accepts requests and then never answers.
+// gemini-3.5-flash is left out: Google routes it to 3.6.
+const GEMINI_MODELS = process.env.GEMINI_MODEL
+  ? [process.env.GEMINI_MODEL]
+  : ["gemini-3-flash-preview", "gemini-3.6-flash", "gemini-3.7-flash"];
+
+// Stay under the 300s Vercel function limit (vercel.json).
+const TOTAL_BUDGET_MS = 280_000;
+// Each attempt leaves this much time for every model still to try.
+const RESERVE_PER_MODEL_MS = 40_000;
+
+const isRetryable = (err: any) => {
+  const status = err?.status ?? err?.code;
+  return status === 503 || status === 500 || status === 429
+    || err?.name === "TimeoutError" || err?.name === "AbortError";
+};
+
+// Free-tier Flash often answers 503 "high demand" or hangs; move on to the next model.
+const generate = async (ai: GoogleGenAI, params: Omit<Parameters<GoogleGenAI["models"]["generateContent"]>[0], "model">) => {
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  for (let i = 0; ; i++) {
+    const last = i === GEMINI_MODELS.length - 1;
+    const timeout = deadline - Date.now() - RESERVE_PER_MODEL_MS * (GEMINI_MODELS.length - 1 - i);
+    try {
+      return await ai.models.generateContent({
+        ...params,
+        model: GEMINI_MODELS[i],
+        config: { ...params.config, abortSignal: AbortSignal.timeout(timeout) }
+      });
+    } catch (err: any) {
+      if (last || !isRetryable(err)) throw err;
+    }
+  }
+};
+
 export interface ParseRequest {
   text?: string;
   pdfData?: {
@@ -113,8 +150,7 @@ export const parseMorningCard = async (request: ParseRequest, trackName?: string
   if (request.pdfData) parts.push({ inlineData: request.pdfData });
   else if (request.text) parts.push({ text: request.text });
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+  const response = await generate(ai, {
     contents: { parts },
     config
   });
@@ -166,8 +202,7 @@ export const scrapeOTBData = async (trackName: string): Promise<any> => {
       ]
     }`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+  const response = await generate(ai, {
     contents: query,
     config: {
       tools: [{ googleSearch: {} }],
@@ -205,8 +240,7 @@ export const parseRacingDigest = async (request: ParseRequest): Promise<Pipeline
   else if (request.text?.trim()) parts.push({ text: request.text });
   else throw new Error('Attach a PDF or paste the card text first');
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+  const response = await generate(ai, {
     contents: { parts },
     config: { 
       responseMimeType: "application/json", 
@@ -228,8 +262,7 @@ export const parseBackupEntries = async (request: ParseRequest): Promise<Pipelin
   else if (request.text?.trim()) parts.push({ text: request.text });
   else throw new Error('Attach a PDF or paste the card text first');
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+  const response = await generate(ai, {
     contents: { parts },
     config: { 
       responseMimeType: "application/json", 
@@ -255,8 +288,7 @@ export const parseDRF = async (request: ParseRequest): Promise<PipelineResult> =
   else if (request.text?.trim()) parts.push({ text: request.text });
   else throw new Error('Attach a PDF or paste the card text first');
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+  const response = await generate(ai, {
     contents: { parts },
     config: { 
       responseMimeType: "application/json", 
@@ -273,8 +305,7 @@ export const syncLiveDataFromWeb = async (trackHint?: string): Promise<PipelineR
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const query = `LIVE TRACK SCAN: Fetch the full current race card for ${trackHint || 'major tracks'}. Focus on REAL-TIME ODDS shifts and confirm field statistics for EVERY SINGLE RACE scheduled today. DO NOT TRUNCATE. Capture WT, J, T, and ML.`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+  const response = await generate(ai, {
     contents: query,
     config: {
       tools: [{ googleSearch: {} }],
