@@ -91,6 +91,7 @@ const App: React.FC = () => {
   const [selectedTrackId, setSelectedTrackId] = useState<string>(TRACKS[0].id);
   const [customTrackName, setCustomTrackName] = useState<string>('');
   const [dbStatus, setDbStatus] = useState<'idle' | 'synced' | 'error'>('idle');
+  const [dbSummary, setDbSummary] = useState<string>('');
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied'>('idle');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,6 +190,7 @@ const App: React.FC = () => {
       const handicappingResult = processHandicapping(data);
       setResult(handicappingResult);
       setDbStatus('idle');
+      setDbSummary('');
       endProgress("Pipeline Execution Successful.");
     } catch (err: any) {
       setError(err?.message || 'Neural pipeline execution failed.');
@@ -232,19 +234,9 @@ const App: React.FC = () => {
     setIsSyncingDB(true);
     setError(null);
     try {
-      const flattenedData = result.races.flatMap(race => 
-        race.horses.map(horse => ({
-          race_id: `${result.track}_${result.date}_R${race.number}_${horse.programNumber}`.replace(/\s+/g, '_'),
-          race_number: race.number,
-          distance: race.distance,
-          surface: race.surface,
-          date: result.date,
-          ...horse,
-          pastPerformances: horse.pastPerformances || []
-        }))
-      );
-      
-      await persistRaceData(flattenedData, result.track);
+      const saved = await persistRaceData(result, result.track || getEffectiveTrackName(), toolMode);
+      setDbSummary(`${saved.races} races / ${saved.horses} horses saved to RaceWise AI as ${saved.track_name}, ${saved.race_date}` +
+        (saved.errors.length ? ` (${saved.errors.length} warnings: ${saved.errors.join('; ')})` : ''));
       setDbStatus('synced');
     } catch (err: any) {
       console.error("Supabase Sync Failed", err);
@@ -633,9 +625,12 @@ const App: React.FC = () => {
              ) : dbStatus === 'synced' ? (
                <><CheckCircle className="w-4 h-4" /> QUANTUM SYNCED</>
              ) : (
-               <><Cloud className="w-4 h-4" /> LOAD TO SUPABASE</>
+               <><Cloud className="w-4 h-4" /> LOAD TO RACEWISE AI</>
              )}
           </button>
+          {dbStatus === 'synced' && dbSummary && (
+            <p className="text-[10px] text-blue-300/80 font-bold text-center -mt-2">{dbSummary}</p>
+          )}
         </div>
 
         {/* COLUMN 2: ANALYSIS & RESULTS */}

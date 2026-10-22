@@ -1,0 +1,4 @@
+node_modules
+dist
+.env.local
+migrated_prompt_history
