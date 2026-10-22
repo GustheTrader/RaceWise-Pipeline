@@ -86,7 +86,7 @@ export const parseMorningCard = async (request: ParseRequest, trackName?: string
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   
   const prompt = `MISSION: ABSOLUTE FULL DAILY CARD EXTRACTION & VERIFICATION.
-    Primary Source: ${request.pdfData ? 'Uploaded PDF' : 'Web Scrape of offtrackbetting.com'}
+    Primary Source: ${request.pdfData ? 'Uploaded PDF' : request.text ? 'Pasted text below' : 'Web search for the live card'}
     Target Track: ${trackName || 'Current Card'}
     
     Requirements:
@@ -94,7 +94,7 @@ export const parseMorningCard = async (request: ParseRequest, trackName?: string
     2. MANDATORY FIELDS per Horse: Name, Program Number (PP), Weight (WT), Jockey, Trainer, Morning Line (ML).
     3. If parsing a PDF, match entries against live entries if trackName is provided.
     4. Link Jockeys and Trainers precisely.
-    5. For every horse, estimate or find 5 most recent Past Performances.
+    5. For every horse, list up to 5 most recent Past Performances found in the source. Never estimate or invent them; leave the list empty if none are given.
     
     DO NOT TRUNCATE. RETURN THE COMPLETE CARD.`;
 
@@ -202,7 +202,8 @@ export const parseRacingDigest = async (request: ParseRequest): Promise<Pipeline
 
   const parts: any[] = [{ text: prompt }];
   if (request.pdfData) parts.push({ inlineData: request.pdfData });
-  else if (request.text) parts.push({ text: request.text });
+  else if (request.text?.trim()) parts.push({ text: request.text });
+  else throw new Error('Attach a PDF or paste the card text first');
 
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-pro-preview',
@@ -224,7 +225,8 @@ export const parseBackupEntries = async (request: ParseRequest): Promise<Pipelin
 
   const parts: any[] = [{ text: prompt }];
   if (request.pdfData) parts.push({ inlineData: request.pdfData });
-  else if (request.text) parts.push({ text: request.text });
+  else if (request.text?.trim()) parts.push({ text: request.text });
+  else throw new Error('Attach a PDF or paste the card text first');
 
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-pro-preview',
@@ -250,7 +252,8 @@ export const parseDRF = async (request: ParseRequest): Promise<PipelineResult> =
 
   const parts: any[] = [{ text: prompt }];
   if (request.pdfData) parts.push({ inlineData: request.pdfData });
-  else if (request.text) parts.push({ text: request.text });
+  else if (request.text?.trim()) parts.push({ text: request.text });
+  else throw new Error('Attach a PDF or paste the card text first');
 
   const response = await ai.models.generateContent({
     model: 'gemini-3.1-pro-preview',

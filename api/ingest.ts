@@ -9,10 +9,16 @@ export async function POST(req: Request): Promise<Response> {
   const key = process.env.PIPELINE_INGEST_KEY;
   if (!key) return json({ error: 'PIPELINE_INGEST_KEY is not set on the server' }, 500);
 
-  const res = await fetch(process.env.PIPELINE_INGEST_URL || DEFAULT_INGEST_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-pipeline-key': key },
-    body: await req.text(),
-  });
-  return new Response(await res.text(), { status: res.status, headers: { 'content-type': 'application/json' } });
+  try {
+    const res = await fetch(process.env.PIPELINE_INGEST_URL || DEFAULT_INGEST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-pipeline-key': key },
+      body: await req.text(),
+    });
+    // A 401 here means our ingest key is wrong, not the user's app password.
+    if (res.status === 401) return json({ error: 'RaceWise AI rejected the upload key (PIPELINE_INGEST_KEY)' }, 502);
+    return new Response(await res.text(), { status: res.status, headers: { 'content-type': 'application/json' } });
+  } catch (err: any) {
+    return json({ error: `Could not reach RaceWise AI: ${err?.message || err}` }, 502);
+  }
 }
