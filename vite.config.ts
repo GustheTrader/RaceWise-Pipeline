@@ -32,7 +32,7 @@ function apiDev(): Plugin {
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
-    for (const name of ['GEMINI_API_KEY', 'PIPELINE_INGEST_KEY', 'PIPELINE_INGEST_URL', 'PIPELINE_APP_PASSWORD']) {
+    for (const name of ['GEMINI_API_KEY', 'CHEAPERINFERENCE_API_KEY', 'CHEAPERINFERENCE_BASE_URL', 'CHEAPERINFERENCE_MODEL', 'PIPELINE_INGEST_KEY', 'PIPELINE_INGEST_URL', 'PIPELINE_APP_PASSWORD']) {
       if (env[name]) process.env[name] = env[name];
     }
     return {
