@@ -134,7 +134,7 @@ export const parseMorningCard = async (request: ParseRequest, trackName?: string
     
     DO NOT TRUNCATE. RETURN THE COMPLETE CARD.`;
 
-  if ((request.pdfData || request.text) && process.env.CHEAPERINFERENCE_API_KEY) {
+  if ((request.pdfData || request.text?.trim()) && process.env.CHEAPERINFERENCE_API_KEY) {
     return generateCheaperInferenceJSON(prompt, request, RESPONSE_SCHEMA, 65000);
   }
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -151,7 +151,7 @@ export const parseMorningCard = async (request: ParseRequest, trackName?: string
   }
 
   if (request.pdfData) parts.push({ inlineData: request.pdfData });
-  else if (request.text) parts.push({ text: request.text });
+  else if (request.text?.trim()) parts.push({ text: request.text });
 
   const response = await generate(ai, {
     contents: { parts },
