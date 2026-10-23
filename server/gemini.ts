@@ -1,7 +1,7 @@
 // Server-side Gemini calls (run in the Vercel functions under api/, never in the browser)
 import { GoogleGenAI, Type } from "@google/genai";
 import type { PipelineResult } from "../types";
-import { generateCheaperInferenceJSON } from "./cheaperinference";
+import { generateCheaperInferenceJSON } from "./cheaperinference.js";
 
 // Flash for now: the current GEMINI_API_KEY is free-tier, which has no Pro quota.
 // Set GEMINI_MODEL=gemini-3.1-pro-preview once the key's project has billing.
