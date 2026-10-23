@@ -1,6 +1,7 @@
 // Server-side Gemini calls (run in the Vercel functions under api/, never in the browser)
 import { GoogleGenAI, Type } from "@google/genai";
 import type { PipelineResult } from "../types";
+import { generateCheaperInferenceJSON } from "./cheaperinference";
 
 // Flash for now: the current GEMINI_API_KEY is free-tier, which has no Pro quota.
 // Set GEMINI_MODEL=gemini-3.1-pro-preview once the key's project has billing.
@@ -120,8 +121,6 @@ const RESPONSE_SCHEMA = {
  * Tool 4: Morning Card Parser & Web Scraper Hybrid
  */
 export const parseMorningCard = async (request: ParseRequest, trackName?: string): Promise<PipelineResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  
   const prompt = `MISSION: ABSOLUTE FULL DAILY CARD EXTRACTION & VERIFICATION.
     Primary Source: ${request.pdfData ? 'Uploaded PDF' : request.text ? 'Pasted text below' : 'Web search for the live card'}
     Target Track: ${trackName || 'Current Card'}
@@ -135,6 +134,10 @@ export const parseMorningCard = async (request: ParseRequest, trackName?: string
     
     DO NOT TRUNCATE. RETURN THE COMPLETE CARD.`;
 
+  if ((request.pdfData || request.text) && process.env.CHEAPERINFERENCE_API_KEY) {
+    return generateCheaperInferenceJSON(prompt, request, RESPONSE_SCHEMA, 65000);
+  }
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const parts: any[] = [{ text: prompt }];
   const config: any = { 
     responseMimeType: "application/json", 
@@ -228,13 +231,17 @@ export const scrapeOTBData = async (trackName: string): Promise<any> => {
 };
 
 export const parseRacingDigest = async (request: ParseRequest): Promise<PipelineResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const prompt = `CRITICAL MISSION: You are parsing a Today's Racing Digest PDF for Rasewiseai.com. 
     1. EXTRACT EVERY SINGLE RACE (R1 through the final race of the card). 
     2. NO TRUNCATION. If the document has 11, 12, or 15 races, you MUST return all of them.
     3. FOR EVERY HORSE: Extract the "Consensus" rating, Morning Line (ML), Weight (WT), Jockey, and Trainer.
     4. Generate Neural Ensemble Scores (0-100 scale).`;
 
+  if (!request.pdfData && !request.text?.trim()) throw new Error('Attach a PDF or paste the card text first');
+  if (process.env.CHEAPERINFERENCE_API_KEY) {
+    return generateCheaperInferenceJSON(prompt, request, RESPONSE_SCHEMA, 65000);
+  }
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const parts: any[] = [{ text: prompt }];
   if (request.pdfData) parts.push({ inlineData: request.pdfData });
   else if (request.text?.trim()) parts.push({ text: request.text });
@@ -254,9 +261,13 @@ export const parseRacingDigest = async (request: ParseRequest): Promise<Pipeline
 };
 
 export const parseBackupEntries = async (request: ParseRequest): Promise<PipelineResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const prompt = `FULL CARD BACKUP PARSER: Parse all races on this card (R1 to the end). Map every entry to our ensemble pipeline. DO NOT STOP until the entire card is processed. NO TRUNCATION. Ensure ML Odds, Weights, Jockeys, and Trainers are captured.`;
 
+  if (!request.pdfData && !request.text?.trim()) throw new Error('Attach a PDF or paste the card text first');
+  if (process.env.CHEAPERINFERENCE_API_KEY) {
+    return generateCheaperInferenceJSON(prompt, request, RESPONSE_SCHEMA, 60000);
+  }
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const parts: any[] = [{ text: prompt }];
   if (request.pdfData) parts.push({ inlineData: request.pdfData });
   else if (request.text?.trim()) parts.push({ text: request.text });
@@ -276,13 +287,17 @@ export const parseBackupEntries = async (request: ParseRequest): Promise<Pipelin
 };
 
 export const parseDRF = async (request: ParseRequest): Promise<PipelineResult> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const prompt = `CRITICAL MISSION: You are parsing a Daily Racing Form (DRF) PDF.
     1. EXTRACT EVERY SINGLE RACE (R1 through the final race of the card). 
     2. NO TRUNCATION.
     3. FOR EVERY HORSE: Extract Morning Line (ML), Weight (WT), Jockey, and Trainer. Also extract past performance statistics.
     4. Generate Neural Ensemble Scores (0-100 scale).`;
 
+  if (!request.pdfData && !request.text?.trim()) throw new Error('Attach a PDF or paste the card text first');
+  if (process.env.CHEAPERINFERENCE_API_KEY) {
+    return generateCheaperInferenceJSON(prompt, request, RESPONSE_SCHEMA, 65000);
+  }
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const parts: any[] = [{ text: prompt }];
   if (request.pdfData) parts.push({ inlineData: request.pdfData });
   else if (request.text?.trim()) parts.push({ text: request.text });
