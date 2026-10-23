@@ -14,6 +14,7 @@ export async function POST(req: Request): Promise<Response> {
     return json({ error: 'Invalid parser input' }, 400);
   }
   const request = body.request ?? {};
+  if (typeof request.text === 'string') request.text = request.text.trim();
   const validTasks = ['morning', 'digest', 'entries', 'drf', 'live', 'scrape'];
   if (!validTasks.includes(task)) return json({ error: `Unknown task: ${task}` }, 400);
 
