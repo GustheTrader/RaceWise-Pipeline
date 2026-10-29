@@ -10,7 +10,7 @@ export const processHandicapping = (data: PipelineResult): PipelineResult => {
     // 1. Calculate Base Ensemble Scores for ALL horses
     let raceHorses = race.horses.map(horse => {
       // Bonus flag for longshot indicators
-      const hc20Bonus = (horse.hf || "").includes("20") ? 100 : 0;
+      const hc20Bonus = (horse.hf || "").split(/[,;\s]+/).includes("20") ? 100 : 0;
       
       /**
        * UPDATED ENSEMBLE WEIGHTS (v3.7.0)
